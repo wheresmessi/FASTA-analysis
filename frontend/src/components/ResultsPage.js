@@ -8,19 +8,16 @@ function ResultsPage() {
   const [tableData, setTableData] = useState([]);
   const [headers, setHeaders] = useState([]);
 
-  // Fetch and parse CSV
   useEffect(() => {
     if (csv_url) {
-      fetch(`http://localhost:5000${csv_url}`)
+      fetch(`${process.env.REACT_APP_API_URL}${csv_url}`)
         .then((res) => res.text())
         .then((csv) => {
           const parsed = Papa.parse(csv, { header: true });
           setTableData(parsed.data);
           setHeaders(parsed.meta.fields || []);
         })
-        .catch((err) => {
-          console.error("CSV parsing failed:", err);
-        });
+        .catch((err) => console.error("CSV parsing failed:", err));
     }
   }, [csv_url]);
 
@@ -28,26 +25,9 @@ function ResultsPage() {
     <div className="fasta-container">
       <h2 className="fasta-title">Analysis Results</h2>
       {message && <p className="fasta-valid">{message}</p>}
-
       <div style={{ marginTop: "24px" }}>
-        <a
-          href={`http://localhost:5000${csv_url}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="fasta-upload-btn"
-        >
-          View CSV Summary
-        </a>
-        
-        <a
-          href={`http://localhost:5000${txt_url}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="fasta-upload-btn"
-          style={{ marginTop: "16px" }}
-        >
-          View TXT Summary
-        </a>
+        <a href={`${process.env.REACT_APP_API_URL}${csv_url}`} className="fasta-upload-btn" target="_blank" rel="noreferrer">View CSV Summary</a>
+        <a href={`${process.env.REACT_APP_API_URL}${txt_url}`} className="fasta-upload-btn" style={{ marginTop: "16px" }} target="_blank" rel="noreferrer">View TXT Summary</a>
       </div>
 
       {tableData.length > 0 && (

@@ -19,8 +19,9 @@ function FastaUploader() {
     }
   };
 
+  // Updated handleAnalysis to pass validFilePath in navigation state
   const handleAnalysis = () => {
-    navigate("/analysis");
+    navigate("/analysis", { state: { validFilePath: result.valid_file_path } });
   };
 
   return (

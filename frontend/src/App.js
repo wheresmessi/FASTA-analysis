@@ -1,7 +1,7 @@
-import './index.css';
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import FastaUploader from "./components/Fastauploader";
 import AnalysisPage from "./components/AnalysisPage";
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import ResultsPage from "./components/ResultsPage";
 
 function App() {
   return (
@@ -9,6 +9,7 @@ function App() {
       <Routes>
         <Route path="/" element={<FastaUploader />} />
         <Route path="/analysis" element={<AnalysisPage />} />
+        <Route path="/results" element={<ResultsPage />} />
       </Routes>
     </Router>
   );

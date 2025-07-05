@@ -1,20 +1,32 @@
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
-from validator import validate_fasta_file
 from werkzeug.utils import secure_filename
 from Bio import SeqIO
 import os
+import shutil
+from validator import validate_fasta_file
+from gc_analysis import run_combined_analysis
 
-app = Flask(__name__, static_folder="../frontend/build", static_url_path="/")
+# === Absolute Paths ===
+BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+UPLOAD_FOLDER = os.path.join(BASE_DIR, "uploads")
+RESULTS_FOLDER = os.path.join(BASE_DIR, "results")
+INPUT_FILE = os.path.join(UPLOAD_FOLDER, "input_for_analysis.txt")
+FRONTEND_BUILD = os.path.join(BASE_DIR, "frontend", "build")
+
+# === Flask Setup ===
+app = Flask(__name__, static_folder=FRONTEND_BUILD, static_url_path="/")
 CORS(app)
 
-UPLOAD_FOLDER = "uploads"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+os.makedirs(RESULTS_FOLDER, exist_ok=True)
 
+# === Upload and Validate FASTA ===
 @app.route("/upload", methods=["POST"])
 def upload():
     if 'file' not in request.files:
         return jsonify({"error": "No file uploaded"}), 400
+
     file = request.files['file']
     filename = secure_filename(file.filename)
     filepath = os.path.join(UPLOAD_FOLDER, filename)
@@ -22,9 +34,11 @@ def upload():
 
     valid_records, invalids = validate_fasta_file(filepath)
     valid_file_path = os.path.join(UPLOAD_FOLDER, f"{filename}_valid.fasta")
+
     if valid_records:
         with open(valid_file_path, "w") as handle:
             SeqIO.write(valid_records, handle, "fasta")
+        shutil.copy(valid_file_path, INPUT_FILE)
 
     return jsonify({
         "valid_count": len(valid_records),
@@ -33,14 +47,38 @@ def upload():
         "valid_file_path": valid_file_path if valid_records else None
     })
 
-# Serve React frontend
+# === Run Analysis ===
+@app.route("/run-analysis", methods=["POST"])
+def run_analysis():
+    if not os.path.exists(INPUT_FILE):
+        return jsonify({"error": "Valid FASTA input not found."}), 400
+
+    try:
+        run_combined_analysis()
+    except Exception as e:
+        return jsonify({"error": "Analysis failed", "details": str(e)}), 500
+
+    return jsonify({
+        "message": "Analysis complete",
+        "csv_url": "/download/combined_summary.csv",
+        "txt_url": "/download/combined_summary.txt"
+    })
+
+# === Serve Result Files ===
+@app.route("/download/<path:filename>", methods=["GET"])
+def download_file(filename):
+    return send_from_directory(RESULTS_FOLDER, filename, as_attachment=False)
+
+# === Serve Frontend ===
 @app.route("/", defaults={"path": ""})
 @app.route("/<path:path>")
 def serve_react(path):
-    if path != "" and os.path.exists(app.static_folder + "/" + path):
-        return send_from_directory(app.static_folder, path)
+    target = os.path.join(FRONTEND_BUILD, path)
+    if path != "" and os.path.exists(target):
+        return send_from_directory(FRONTEND_BUILD, path)
     else:
-        return send_from_directory(app.static_folder, "index.html")
+        return send_from_directory(FRONTEND_BUILD, "index.html")
 
+# === Run Flask ===
 if __name__ == "__main__":
     app.run(debug=True)
